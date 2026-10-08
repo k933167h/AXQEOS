@@ -1,0 +1,30 @@
+services:
+  api:
+    build: .
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      AX_DB_PATH: /data/axqeos.sqlite3
+      AX_REPORTER_TOKEN: ${AX_REPORTER_TOKEN:?set reporter token}
+      AX_SME_TOKEN: ${AX_SME_TOKEN:?set SME token}
+      JEV_BASE_URL: ${JEV_BASE_URL:-}
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_MODEL: ${JEV_MODEL:-}
+      LLM_JUDGE_BASE_URL: ${LLM_JUDGE_BASE_URL:-}
+      LLM_JUDGE_API_KEY: ${LLM_JUDGE_API_KEY:-}
+      LLM_JUDGE_MODEL: ${LLM_JUDGE_MODEL:-}
+    volumes: ["ax-data:/data"]
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    volumes: ["./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["127.0.0.1:9090:9090"]
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set grafana password}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:3000:3000"]
+volumes:
+  ax-data:
