@@ -3,19 +3,19 @@ on:
   push:
   pull_request:
 jobs:
-  syntax:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check Python syntax when present
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Validate Python syntax and routing policy
         run: |
-          if [ -d app ]; then python -m compileall -q app; fi
-      - name: Validate routing policy when present
-        run: |
-          python -m pip install pyyaml
+          python -m compileall -q app tests
           python - <<'PY'
           import yaml
           with open('config/routing.yaml') as f:
@@ -23,3 +23,16 @@ jobs:
           assert 0 <= p['confidence_escalate'] <= p['confidence_accept'] <= 1
           assert 0 <= p['strong_judge_risk'] <= p['critical_risk'] <= 1
           PY
+      - name: Run isolated API and workflow tests
+        env:
+          AX_DB_PATH: /tmp/axqeos-ci.sqlite3
+        run: |
+          mkdir -p evidence
+          python -m pytest -q tests --junitxml=evidence/pytest-junit.xml 2>&1 | tee evidence/pytest-console.log
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axqeos-pytest-evidence
+          path: evidence/
+          if-no-files-found: warn
