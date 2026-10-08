@@ -1,0 +1,18 @@
+{
+  "name": "ax-e2e-golden-candidates",
+  "description": "Candidates require SME approval before promotion",
+  "items": [
+    {
+      "input": {
+        "test_id": "sample",
+        "goal": "login"
+      },
+      "expectedOutput": {
+        "assertion_passed": true
+      },
+      "metadata": {
+        "golden_status": "candidate"
+      }
+    }
+  ]
+}
