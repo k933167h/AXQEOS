@@ -1,0 +1,15 @@
+groups:
+  - id: ax.e2e
+    type: span
+    brief: AX QE OS E2E run
+    attributes:
+      - id: ax.run.id
+        type: string
+      - id: ax.test.id
+        type: string
+      - id: ax.eval.tier
+        type: string
+      - id: ax.risk.score
+        type: double
+      - id: ax.evidence.uri
+        type: string
