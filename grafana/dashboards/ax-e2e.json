@@ -1,0 +1,24 @@
+{
+  "title": "AX QE OS v4.9 E2E",
+  "uid": "axqeos-e2e",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "E2E Run Outcomes",
+      "id": 1,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum by (tier,outcome) (rate(ax_e2e_runs_total[5m]))",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
