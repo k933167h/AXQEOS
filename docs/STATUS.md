@@ -1,0 +1,12 @@
+# v4.9 implementation status
+- TesterArmy: example in-test finally reporter added; real browser execution NOT YET VERIFIED.
+- Reporter: authenticated ingestion, idempotent external run IDs, durable SQLite records.
+- T0: deterministic fail-closed; T1/T2: actual OpenAI-compatible HTTP call if credentials configured; T3: review and SME approval.
+- Golden: explicit SME promotion after approval; no automatic promotion.
+- Outbox: background worker, retry with exponential backoff, dead-letter state after 6 attempts.
+- Plane: generic issue endpoint with X-API-Key; confirm tenant API schema before production.
+- Kiwi: requires a Kiwi-specific adapter endpoint; direct Kiwi TC JSON-RPC not yet implemented.
+- Langfuse: requires an ingestion adapter endpoint; direct Langfuse SDK ingestion not yet implemented.
+- OpenTelemetry: semantic convention draft exists; actual span instrumentation/export is not yet wired.
+- Integration test: persistence unit test authored; end-to-end service + external API execution not verified.
+- Security: repository is PUBLIC; do not add real secrets or patient data.
