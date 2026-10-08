@@ -1,0 +1,51 @@
+# Run: docker compose -f docker-compose.yml -f docker-compose.lab.yml --env-file .env.lab up --build -d
+services:
+  api:
+    environment:
+      JEV_BASE_URL: http://mock-services:8090/v1
+      JEV_API_KEY: lab-only
+      JEV_MODEL: mock-jev
+      LLM_JUDGE_BASE_URL: http://mock-services:8090/v1
+      LLM_JUDGE_API_KEY: lab-only
+      LLM_JUDGE_MODEL: mock-strong
+    depends_on:
+      mock-services:
+        condition: service_healthy
+  worker:
+    environment:
+      PLANE_ISSUE_URL: http://mock-services:8090/plane/issues
+      PLANE_API_KEY: lab-only
+      KIWI_RESULT_URL: http://mock-services:8090/kiwi/results
+      KIWI_API_TOKEN: lab-only
+      LANGFUSE_INGEST_URL: http://mock-services:8090/langfuse/events
+      LANGFUSE_INGEST_TOKEN: lab-only
+  mock-services:
+    image: python:3.12-slim
+    working_dir: /lab
+    volumes:
+      - ./lab:/lab:ro
+    command: ["python","mock_services.py"]
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  otel-collector:
+    image: otel/opentelemetry-collector:0.123.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318"
+  smoke:
+    image: python:3.12-slim
+    working_dir: /lab
+    profiles: ["smoke"]
+    volumes:
+      - ./lab:/lab:ro
+    environment:
+      AXQEOS_URL: http://api:8080
+      AX_REPORTER_TOKEN: ${AX_REPORTER_TOKEN:?set reporter token}
+    command: ["python","smoke.py"]
+    depends_on:
+      - api
