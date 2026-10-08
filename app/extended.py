@@ -1,4 +1,4 @@
-import os,uuid,json
+import os,uuid,json,hmac
 from fastapi import APIRouter,HTTPException,Header
 from pydantic import BaseModel,Field
 from . import store,judges
@@ -15,10 +15,11 @@ class Approval(BaseModel):
  reviewer:str=Field(min_length=2)
  decision:str
  note:str=""
+def require(value,expected):
+ if not expected or not value or not hmac.compare_digest(value,expected):raise HTTPException(403,"authorization required")
 @router.post("/reporter")
 async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(default=None)):
- secret=os.getenv("AX_REPORTER_TOKEN")
- if not secret or x_ax_reporter_token!=secret:raise HTTPException(401,"reporter authentication required")
+ require(x_ax_reporter_token,os.getenv("AX_REPORTER_TOKEN"))
  existing=store.get_run(item.external_run_id)
  if existing:return {"run_id":existing["id"],"outcome":existing["outcome"],"idempotent":True}
  tier,outcome,reason="T0","pass","deterministic_pass"
@@ -29,20 +30,23 @@ async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(defau
   tier,outcome,judgement=await judges.evaluate(item.evidence_summary,item.risk)
   reason=str(judgement.get("reason","judge_result"))[:500]
  rid=str(uuid.uuid4())
- store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
- if outcome=="fail":
-  for dest in ("plane","kiwi","langfuse"):store.queue(rid,dest)
- elif outcome=="review":store.queue(rid,"langfuse")
+ try:store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
+ except Exception:
+  existing=store.get_run(item.external_run_id)
+  if existing:return {"run_id":existing["id"],"outcome":existing["outcome"],"idempotent":True}
+  raise
+ for dest in ("langfuse","kiwi"):
+  store.queue(rid,dest)
+ if outcome=="fail":store.queue(rid,"plane")
  return {"run_id":rid,"tier":tier,"outcome":outcome,"reason":reason}
 @router.get("/runs/{run_id}/persistent")
 def persistent_run(run_id:str):
  row=store.get_run(run_id)
  if not row:raise HTTPException(404,"not found")
- row["payload"]=json.loads(row["payload"])
- return row
+ row["payload"]=json.loads(row["payload"]);return row
 @router.post("/runs/{run_id}/approval")
 def approval(run_id:str,item:Approval,x_ax_sme_token:str|None=Header(default=None)):
- if not os.getenv("AX_SME_TOKEN") or x_ax_sme_token!=os.getenv("AX_SME_TOKEN"):raise HTTPException(403,"SME authorization required")
+ require(x_ax_sme_token,os.getenv("AX_SME_TOKEN"))
  row=store.get_run(run_id)
  if not row:raise HTTPException(404,"not found")
  if row["outcome"]!="review":raise HTTPException(409,"only review cases are approvable")
@@ -50,3 +54,9 @@ def approval(run_id:str,item:Approval,x_ax_sme_token:str|None=Header(default=Non
  store.approve(row["id"],item.reviewer,item.decision,item.note)
  if item.decision=="reject":store.queue(row["id"],"plane")
  return {"run_id":row["id"],"decision":item.decision,"golden_status":"candidate_only"}
+@router.post("/runs/{run_id}/golden/promote")
+def golden_promote(run_id:str,reviewer:str,x_ax_sme_token:str|None=Header(default=None)):
+ require(x_ax_sme_token,os.getenv("AX_SME_TOKEN"))
+ try:store.promote(run_id,reviewer)
+ except ValueError as e:raise HTTPException(409,str(e))
+ return {"run_id":run_id,"golden_status":"approved"}
