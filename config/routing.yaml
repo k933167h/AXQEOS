@@ -1,0 +1,13 @@
+version: 4.9
+routing:
+  critical_risk: 0.85
+  strong_judge_risk: 0.65
+  confidence_accept: 0.90
+  confidence_escalate: 0.65
+  max_judge_usd_per_run: 0.20
+  max_agent_usd_per_run: 1.00
+  critical_fail_closed: true
+  unknown_assertion_fail_closed: true
+  replay_first: true
+  deterministic_first: true
+  human_required_for_critical_failure: true
