@@ -18,3 +18,6 @@ The generic /api/v1/e2e/runs endpoint uses a separate deterministic routing func
 Production failure -> Hypothesis Generator -> subset-first Experiment -> Ablation/Regression -> Independent Review -> SME Gate -> Versioned Golden -> Continuous Quality Monitoring.
 
 No autonomous changes to production, Golden, or quality policies without authorized review.
+
+## CI evidence gate
+GitHub Actions runs pytest for the Reporter/SME workflow and archives JUnit XML plus console output as an Actions artifact. Passing this gate validates isolated API behavior, not actual TesterArmy browsers, remote judge services, or third-party integrations.
