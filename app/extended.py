@@ -27,7 +27,10 @@ async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(defau
  elif item.assertion_passed is None:tier,outcome,reason="T3","review","assertion_missing"
  if outcome=="pass" and item.risk>=0.85:tier,outcome,reason="T3","review","critical_risk"
  elif outcome=="pass" and item.evidence_summary:
-  tier,outcome,judgement=await judges.evaluate(item.evidence_summary,item.risk)
+  try:
+   tier,outcome,judgement=await judges.evaluate(item.evidence_summary,item.risk)
+  except (ValueError, KeyError, TypeError, __import__("httpx").HTTPError) as exc:
+   tier,outcome,judgement="T3","review",{"reason":"judge_unavailable_or_invalid"}
   reason=str(judgement.get("reason","judge_result"))[:500]
  rid=str(uuid.uuid4())
  try:store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
