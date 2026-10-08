@@ -1,18 +1,31 @@
+x-ax-env: &ax-env
+  AX_DB_PATH: /data/axqeos.sqlite3
+  AX_REPORTER_TOKEN: ${AX_REPORTER_TOKEN:?set reporter token}
+  AX_SME_TOKEN: ${AX_SME_TOKEN:?set SME token}
+  JEV_BASE_URL: ${JEV_BASE_URL:-}
+  JEV_API_KEY: ${JEV_API_KEY:-}
+  JEV_MODEL: ${JEV_MODEL:-}
+  LLM_JUDGE_BASE_URL: ${LLM_JUDGE_BASE_URL:-}
+  LLM_JUDGE_API_KEY: ${LLM_JUDGE_API_KEY:-}
+  LLM_JUDGE_MODEL: ${LLM_JUDGE_MODEL:-}
+  PLANE_ISSUE_URL: ${PLANE_ISSUE_URL:-}
+  PLANE_API_KEY: ${PLANE_API_KEY:-}
+  KIWI_RESULT_URL: ${KIWI_RESULT_URL:-}
+  KIWI_API_TOKEN: ${KIWI_API_TOKEN:-}
+  LANGFUSE_INGEST_URL: ${LANGFUSE_INGEST_URL:-}
+  LANGFUSE_INGEST_TOKEN: ${LANGFUSE_INGEST_TOKEN:-}
 services:
   api:
     build: .
+    environment: *ax-env
     ports: ["127.0.0.1:8080:8080"]
-    environment:
-      AX_DB_PATH: /data/axqeos.sqlite3
-      AX_REPORTER_TOKEN: ${AX_REPORTER_TOKEN:?set reporter token}
-      AX_SME_TOKEN: ${AX_SME_TOKEN:?set SME token}
-      JEV_BASE_URL: ${JEV_BASE_URL:-}
-      JEV_API_KEY: ${JEV_API_KEY:-}
-      JEV_MODEL: ${JEV_MODEL:-}
-      LLM_JUDGE_BASE_URL: ${LLM_JUDGE_BASE_URL:-}
-      LLM_JUDGE_API_KEY: ${LLM_JUDGE_API_KEY:-}
-      LLM_JUDGE_MODEL: ${LLM_JUDGE_MODEL:-}
     volumes: ["ax-data:/data"]
+  worker:
+    build: .
+    command: ["python","-m","app.worker"]
+    environment: *ax-env
+    volumes: ["ax-data:/data"]
+    depends_on: [api]
   prometheus:
     image: prom/prometheus:v3.2.1
     volumes: ["./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
