@@ -2,24 +2,47 @@ name: AXQEOS CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
-  syntax:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check Python syntax when present
+      - run: pip install -r requirements.txt
+      - name: Python compile
+        run: python -m compileall -q app tests
+      - name: Unit tests
+        env:
+          AX_DB_PATH: /tmp/axqeos-ci.sqlite3
+        run: python -m pytest -q tests
+      - name: Compose config validation
+        env:
+          AX_REPORTER_TOKEN: ci-placeholder
+          AX_SME_TOKEN: ci-placeholder
+          GRAFANA_ADMIN_PASSWORD: ci-placeholder
+        run: docker compose config -q
+      - name: Dependency audit
         run: |
-          if [ -d app ]; then python -m compileall -q app; fi
-      - name: Validate routing policy when present
+          pip install pip-audit
+          pip-audit -r requirements.txt
+  integration:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: integration
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secrets availability
+        env:
+          JEV_API_KEY: ${{ secrets.JEV_API_KEY }}
+          LLM_JUDGE_API_KEY: ${{ secrets.LLM_JUDGE_API_KEY }}
+          AX_REPORTER_TOKEN: ${{ secrets.AX_REPORTER_TOKEN }}
+          AX_SME_TOKEN: ${{ secrets.AX_SME_TOKEN }}
         run: |
-          python -m pip install pyyaml
-          python - <<'PY'
-          import yaml
-          with open('config/routing.yaml') as f:
-              p=yaml.safe_load(f)['routing']
-          assert 0 <= p['confidence_escalate'] <= p['confidence_accept'] <= 1
-          assert 0 <= p['strong_judge_risk'] <= p['critical_risk'] <= 1
-          PY
+          test -n "$JEV_API_KEY"
+          test -n "$LLM_JUDGE_API_KEY"
+          test -n "$AX_REPORTER_TOKEN"
+          test -n "$AX_SME_TOKEN"
