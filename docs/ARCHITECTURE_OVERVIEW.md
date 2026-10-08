@@ -21,3 +21,6 @@ No autonomous changes to production, Golden, or quality policies without authori
 
 ## CI evidence gate
 GitHub Actions runs pytest for the Reporter/SME workflow and archives JUnit XML plus console output as an Actions artifact. Passing this gate validates isolated API behavior, not actual TesterArmy browsers, remote judge services, or third-party integrations.
+
+## Experimental quality loop (development branch, prototype)
+Authenticated quality hypothesis records are linked to existing run IDs; experiments must reference a persisted test run and evidence URI; an SME-token-protected review records accept/reject/revise. This is a **manual orchestration prototype**, not an autonomous hypothesis generator, independent AI reviewer, ablation runner, or real TesterArmy executor. Accepted hypotheses never auto-promote Golden. The model judge failure path returns T3 review rather than HTTP 500 for recognized transport/parse failures.

@@ -11,7 +11,7 @@ async def judge(prompt,model,base_url,key,timeout=30):
   return obj
 async def evaluate(evidence,risk):
  cheap=await judge(evidence,os.getenv("JEV_MODEL"),os.getenv("JEV_BASE_URL"),os.getenv("JEV_API_KEY"))
- if cheap["verdict"]=="fail":return "T1","fail",cheap
+ if cheap["verdict"]=="fail" and cheap["confidence"]>=0.90:return "T1","fail",cheap
  if risk<0.65 and cheap["confidence"]>=0.90 and cheap["verdict"]=="pass":return "T1","pass",cheap
  strong=await judge(evidence,os.getenv("LLM_JUDGE_MODEL"),os.getenv("LLM_JUDGE_BASE_URL"),os.getenv("LLM_JUDGE_API_KEY"))
  if risk>=0.85:return "T3","review",strong
