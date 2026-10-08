@@ -1,0 +1,25 @@
+name: AXQEOS CI
+on:
+  push:
+  pull_request:
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check Python syntax when present
+        run: |
+          if [ -d app ]; then python -m compileall -q app; fi
+      - name: Validate routing policy when present
+        run: |
+          python -m pip install pyyaml
+          python - <<'PY'
+          import yaml
+          with open('config/routing.yaml') as f:
+              p=yaml.safe_load(f)['routing']
+          assert 0 <= p['confidence_escalate'] <= p['confidence_accept'] <= 1
+          assert 0 <= p['strong_judge_risk'] <= p['critical_risk'] <= 1
+          PY
