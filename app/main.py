@@ -1,6 +1,6 @@
 import os,uuid,json,time,yaml
 from pathlib import Path
-from fastapi import FastAPI,HTTPException
+from fastapi import FastAPI,HTTPException,Header
 from fastapi.responses import Response
 from pydantic import BaseModel,Field
 from prometheus_client import Counter,generate_latest,CONTENT_TYPE_LATEST
@@ -8,7 +8,7 @@ from . import store
 from .orchestrator import decide
 from .evaluation_service import evaluate_run
 from .judge_ledger import record_calls, summary as judge_summary
-from .extended import router
+from .extended import router, require
 from .scientist import router as scientist_router
 from .quality_api import router as quality_router
 app=FastAPI(title="AX QE OS",version="4.9.0")
@@ -62,6 +62,7 @@ def get_run(run_id:str):
 def metrics():return Response(generate_latest(),media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/api/v1/e2e/runs/{run_id}/judge-telemetry")
-def judge_telemetry(run_id:str):
+def judge_telemetry(run_id:str,x_ax_sme_token:str|None=Header(default=None)):
+ require(x_ax_sme_token,os.getenv('AX_SME_TOKEN'))
  if not store.get_run(run_id):raise HTTPException(404,"not found")
  return judge_summary(run_id)
