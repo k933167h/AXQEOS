@@ -20,7 +20,7 @@ async def evaluate_run(*, risk:float, assertion_passed:bool|None, confidence:flo
         confidence_escalate=p.get("confidence_escalate",0.65))
     result={"tier":d.tier,"outcome":d.outcome,"reason":d.reason,
             "estimated_judge_cost_usd":d.estimated_cost_usd,
-            "judge_executed":False}
+            "judge_executed":False,"judge_calls":[]}
     if not d.judge_allowed:return result
     if not evidence_summary.strip():
         return {**result,"tier":"T3","outcome":"review","reason":"judge_evidence_missing"}
@@ -30,11 +30,11 @@ async def evaluate_run(*, risk:float, assertion_passed:bool|None, confidence:flo
             raise ValueError("invalid judge result")
         # The routing policy may require T2. A T1 decision cannot override it.
         if d.tier=="T2" and tier=="T1":
-            return {**result,"tier":"T3","outcome":"review","reason":"judge_tier_downgrade_blocked","judge_executed":True}
+            return {**result,"tier":"T3","outcome":"review","reason":"judge_tier_downgrade_blocked","judge_executed":True,"judge_calls":judgement.get("_calls",[])}
         # Missing model credentials yield a review verdict, never a pass.
         return {**result,"tier":tier,"outcome":outcome,
                 "reason":str(judgement.get("reason","judge_result"))[:500],
-                "judge_executed":True}
+                "judge_executed":True,"judge_calls":judgement.get("_calls",[])}
     except (httpx.HTTPError,ValueError,KeyError,TypeError,IndexError,TimeoutError):
         return {**result,"tier":"T3","outcome":"review",
                 "reason":"judge_unavailable_or_invalid","judge_executed":False}
