@@ -5,3 +5,5 @@ Observability target: OTel Collector -> metrics/traces -> Grafana. Metrics endpo
 Domains: Traditional SW -> Data -> LLM -> RAG -> Agent -> Security.
 Golden candidate != Golden. Promotion requires recorded SME approval.
 Deployment gates: real browser execution, Judge calibration, API integration, trace correlation, end-to-end CI and audit evidence. Not production ready.
+
+Reporter Judge path: risk >= 0.85 bypasses models and requires T3 SME; complexity >= 0.85 routes directly to strong T2 model, otherwise economical T1 may accept or escalate to T2/T3. These are policy gates; model quality is not yet calibrated.
