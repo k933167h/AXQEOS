@@ -6,6 +6,7 @@ from pydantic import BaseModel,Field
 from prometheus_client import Counter,generate_latest,CONTENT_TYPE_LATEST
 from . import store
 from .orchestrator import decide
+from .evaluation_service import evaluate_run
 from .extended import router
 from .scientist import router as scientist_router
 from .quality_api import router as quality_router
@@ -26,6 +27,7 @@ class Run(BaseModel):
  evidence:dict|None=None
  expected_sha256:str|None=None
  estimated_judge_cost_usd:float=Field(default=0,ge=0)
+ evidence_summary:str=""
 def route(r):
  p=yaml.safe_load(Path("config/routing.yaml").read_text())["routing"]
  d=decide(risk=r.risk,assertion_passed=r.assertion_passed,confidence=r.confidence,
@@ -38,14 +40,16 @@ def route(r):
 @app.get("/health")
 def health():return {"status":"ok","version":"4.9.0"}
 @app.post("/api/v1/e2e/runs")
-def ingest(r:Run):
- tier,outcome,reason=route(r)
+async def ingest(r:Run):
+ p=yaml.safe_load(Path("config/routing.yaml").read_text())["routing"]
+ result=await evaluate_run(risk=r.risk,assertion_passed=r.assertion_passed,confidence=r.confidence,evidence_summary=r.evidence_summary,evidence=r.evidence,expected_sha256=r.expected_sha256,estimated_judge_cost_usd=r.estimated_judge_cost_usd,policy=p)
+ tier,outcome,reason=result["tier"],result["outcome"],result["reason"]
  rid=str(uuid.uuid4())
  store.put_run(rid,r.external_run_id,r.model_dump(),tier,outcome,reason)
  RUNS.labels(tier,outcome).inc()
  if outcome=="fail":
   for dest in ("plane","kiwi","langfuse"):store.queue(rid,dest)
- return {"run_id":rid,"tier":tier,"outcome":outcome,"reason":reason,"golden_status":"candidate"}
+ return {"run_id":rid,"tier":tier,"outcome":outcome,"reason":reason,"judge_executed":result["judge_executed"],"estimated_judge_cost_usd":result["estimated_judge_cost_usd"],"golden_status":"candidate"}
 @app.get("/api/v1/e2e/runs/{run_id}")
 def get_run(run_id:str):
  row=store.get_run(run_id)
