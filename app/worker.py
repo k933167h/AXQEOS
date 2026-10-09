@@ -1,6 +1,7 @@
 import os,json,asyncio,logging,httpx
 from . import store
 from .integration_algorithms import retry_delay,redact_evidence
+from .trace_context import child_traceparent
 logging.basicConfig(level=logging.INFO)
 async def deliver(job):
  row=store.get_run(job["run_id"])
@@ -24,6 +25,8 @@ async def deliver(job):
   body={"run_id":row["id"],"test_id":payload.get("test_id"),"outcome":row["outcome"],"tier":row["tier"],"evidence_uri":payload.get("evidence_uri")}
  else:raise RuntimeError("unknown destination")
  headers["Idempotency-Key"]=row["id"]+":"+dest
+ if payload.get("traceparent"):
+  headers["traceparent"]=child_traceparent(payload["traceparent"])
  async with httpx.AsyncClient(timeout=15) as client:
   res=await client.post(url,json=body,headers=headers);res.raise_for_status()
   try:return str(res.json().get("id") or res.json().get("result",{}).get("id") or "accepted")
