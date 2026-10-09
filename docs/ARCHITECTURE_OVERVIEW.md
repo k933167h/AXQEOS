@@ -36,3 +36,6 @@ The generic POST /api/v1/e2e/runs path now invokes app/orchestrator.py for deter
 
 ## Unified evaluation service (development)
 Both generic E2E ingestion and authenticated Reporter call app/evaluation_service.py. T0 deterministic gates precede model evaluation. T1/T2 model calls are attempted only with evidence text and allowed routing budget; absent model configuration returns review, not pass. Risk policy prevents a T1 verdict from overriding a required T2 path. Model transport/format failures fail closed to T3. The Reporter currently uses a heuristic confidence (0.7 with summary, 0.99 without); this is **not calibrated model confidence** and must be replaced. The judge evaluator may invoke both T1 and T2; estimated cost is not actual metered cost. External execution remains unverified.
+
+## Judge Calibration and Economics primitives
+app/judge_metrics.py computes Brier score and ECE from independently labeled confidence/correctness pairs, token-price cost from supplied actual usage, and Judge Cost / Cost per Correct Evaluation / False Accept / Critical False Accept rates. These functions do not fetch provider prices or create labels, and they are not yet wired to live judge telemetry. Do not interpret the presence of these calculations as proof of calibration. Reserve disjoint calibration and holdout datasets before enabling production thresholds.
