@@ -27,3 +27,6 @@ Authenticated quality hypothesis records are linked to existing run IDs; experim
 
 ## Native fallback algorithms (development branch)
 app/quality_algorithms.py provides canonical SHA-256 evidence digests, stable risk-stratified subset selection, paired descriptive ablation deltas, and conservative multi-reviewer consensus. All are deterministic and usable without an external AI service. These are reusable primitives, **not yet wired into the production evaluation orchestrator**. Review IDs alone do not establish actual organizational or model independence. Evidence digests detect changes only against a trusted stored reference; they do not establish provenance. Ablation deltas are not causal estimates.
+
+## Native algorithm API integration (development branch)
+Authenticated /api/v1/quality endpoints expose evidence verification, subset selection, ablation delta, reviewer consensus, and persistent audit retrieval. Evidence and review audits are linked to run IDs in SQLite. Subset and ablation calls are currently stateless; the evaluation orchestrator does not automatically invoke them. Evidence verification accepts a caller-supplied reference digest and therefore does not independently establish trusted provenance. Reviewer IDs are self-declared; identity/model independence is not independently attested. No API here promotes Golden.
