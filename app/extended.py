@@ -2,6 +2,7 @@ import os,uuid,json,hmac
 from fastapi import APIRouter,HTTPException,Header
 from pydantic import BaseModel,Field
 from . import store,judges
+from .trace_context import traceparent,trace_id
 router=APIRouter(prefix="/api/v1")
 class ReporterResult(BaseModel):
  external_run_id:str=Field(min_length=1)
@@ -19,8 +20,9 @@ class Approval(BaseModel):
 def require(value,expected):
  if not expected or not value or not hmac.compare_digest(value,expected):raise HTTPException(403,"authorization required")
 @router.post("/reporter")
-async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(default=None)):
+async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(default=None),traceparent_header:str|None=Header(default=None,alias="traceparent")):
  require(x_ax_reporter_token,os.getenv("AX_REPORTER_TOKEN"))
+ context=traceparent(traceparent_header)
  existing=store.get_run(item.external_run_id)
  if existing:return {"run_id":existing["id"],"outcome":existing["outcome"],"idempotent":True}
  tier,outcome,reason="T0","pass","deterministic_pass"
@@ -31,7 +33,7 @@ async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(defau
   tier,outcome,judgement=await judges.evaluate(item.evidence_summary,item.risk,item.complexity)
   reason=str(judgement.get("reason","judge_result"))[:500]
  rid=str(uuid.uuid4())
- try:store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
+ try:store.put_run(rid,item.external_run_id,{**item.model_dump(),"traceparent":context,"trace_id":trace_id(context)},tier,outcome,reason)
  except Exception:
   existing=store.get_run(item.external_run_id)
   if existing:return {"run_id":existing["id"],"outcome":existing["outcome"],"idempotent":True}
@@ -39,7 +41,7 @@ async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(defau
  for dest in ("langfuse","kiwi"):
   store.queue(rid,dest)
  if outcome=="fail":store.queue(rid,"plane")
- return {"run_id":rid,"tier":tier,"outcome":outcome,"reason":reason}
+ return {"run_id":rid,"tier":tier,"outcome":outcome,"reason":reason,"trace_id":trace_id(context)}
 @router.get("/runs/{run_id}/persistent")
 def persistent_run(run_id:str):
  row=store.get_run(run_id)
