@@ -22,3 +22,6 @@ For every change: code -> automated tests -> evidence -> Architecture Overview -
 
 ## 11. Reporter adaptive Judge routing
 Send optional complexity (0..1) in POST /api/v1/reporter. Critical risk >=0.85 routes to T3 SME without model calls; complexity >=0.85 bypasses economical Judge and starts at T2. Lower-risk cases retain existing T1→T2 confidence policy. Test with mock endpoints; actual JEV/LLM service, calibration and audit are still pending. Never interpret a model pass as automatic Golden promotion.
+
+## 12. Trace correlation (Phase 1)
+Optionally send W3C traceparent header to POST /api/v1/reporter; response includes trace_id, and persisted payload contains traceparent/trace_id. Worker forwards child traceparent to configured outbound endpoints. This is propagation only: collector trace visibility is NOT verified and no SDK spans are emitted yet.
