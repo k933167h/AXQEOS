@@ -2,6 +2,7 @@ import os,uuid,json,hmac
 from fastapi import APIRouter,HTTPException,Header
 from pydantic import BaseModel,Field
 from . import store,judges
+from .evaluation_service import evaluate_run
 router=APIRouter(prefix="/api/v1")
 class ReporterResult(BaseModel):
  external_run_id:str=Field(min_length=1)
@@ -22,16 +23,10 @@ async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(defau
  require(x_ax_reporter_token,os.getenv("AX_REPORTER_TOKEN"))
  existing=store.get_run(item.external_run_id)
  if existing:return {"run_id":existing["id"],"outcome":existing["outcome"],"idempotent":True}
- tier,outcome,reason="T0","pass","deterministic_pass"
- if item.assertion_passed is False:tier,outcome,reason="T0","fail","deterministic_fail"
- elif item.assertion_passed is None:tier,outcome,reason="T3","review","assertion_missing"
- if outcome=="pass" and item.risk>=0.85:tier,outcome,reason="T3","review","critical_risk"
- elif outcome=="pass" and item.evidence_summary:
-  try:
-   tier,outcome,judgement=await judges.evaluate(item.evidence_summary,item.risk)
-  except (ValueError, KeyError, TypeError, __import__("httpx").HTTPError) as exc:
-   tier,outcome,judgement="T3","review",{"reason":"judge_unavailable_or_invalid"}
-  reason=str(judgement.get("reason","judge_result"))[:500]
+ result=await evaluate_run(risk=item.risk,assertion_passed=item.assertion_passed,
+                           confidence=0.7 if item.evidence_summary else 0.99,
+                           evidence_summary=item.evidence_summary)
+ tier,outcome,reason=result["tier"],result["outcome"],result["reason"]
  rid=str(uuid.uuid4())
  try:store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
  except Exception:
