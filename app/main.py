@@ -7,10 +7,12 @@ from prometheus_client import Counter,generate_latest,CONTENT_TYPE_LATEST
 from . import store
 from .extended import router
 from .scientist import router as scientist_router
+from .quality_api import router as quality_router
 app=FastAPI(title="AX QE OS",version="4.9.0")
 store.init()
 app.include_router(router)
 app.include_router(scientist_router)
+app.include_router(quality_router)
 RUNS=Counter("ax_e2e_runs_total","Runs",["tier","outcome"])
 class Run(BaseModel):
  test_id:str
