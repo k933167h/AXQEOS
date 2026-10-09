@@ -3,6 +3,7 @@ from fastapi import APIRouter,HTTPException,Header
 from pydantic import BaseModel,Field
 from . import store,judges
 from .evaluation_service import evaluate_run
+from .judge_ledger import record_calls, summary as judge_summary
 router=APIRouter(prefix="/api/v1")
 class ReporterResult(BaseModel):
  external_run_id:str=Field(min_length=1)
@@ -28,7 +29,9 @@ async def reporter(item:ReporterResult,x_ax_reporter_token:str|None=Header(defau
                            evidence_summary=item.evidence_summary)
  tier,outcome,reason=result["tier"],result["outcome"],result["reason"]
  rid=str(uuid.uuid4())
- try:store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
+ try:
+  store.put_run(rid,item.external_run_id,item.model_dump(),tier,outcome,reason)
+  record_calls(rid,result.get("judge_calls",[]))
  except Exception:
   existing=store.get_run(item.external_run_id)
   if existing:return {"run_id":existing["id"],"outcome":existing["outcome"],"idempotent":True}
