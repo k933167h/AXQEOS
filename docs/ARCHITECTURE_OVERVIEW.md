@@ -39,3 +39,6 @@ Both generic E2E ingestion and authenticated Reporter call app/evaluation_servic
 
 ## Judge Calibration and Economics primitives
 app/judge_metrics.py computes Brier score and ECE from independently labeled confidence/correctness pairs, token-price cost from supplied actual usage, and Judge Cost / Cost per Correct Evaluation / False Accept / Critical False Accept rates. These functions do not fetch provider prices or create labels, and they are not yet wired to live judge telemetry. Do not interpret the presence of these calculations as proof of calibration. Reserve disjoint calibration and holdout datasets before enabling production thresholds.
+
+## Judge telemetry ledger (development branch)
+Model response usage (prompt/completion tokens), elapsed call time, model name and verdict flow through the shared evaluator to append-only SQLite judge_calls rows. An authenticated per-run endpoint reports recorded calls, known priced cost and number of unpriced calls. Provider pricing is not automatically configured; unpriced calls are explicitly marked unknown, not zero. Network errors currently may omit attempted-call telemetry; telemetry persistence is not atomic with run insertion. Do not claim complete billing or P95 monitoring. Calibration remains offline.
