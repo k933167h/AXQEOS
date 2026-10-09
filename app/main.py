@@ -5,6 +5,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel,Field
 from prometheus_client import Counter,generate_latest,CONTENT_TYPE_LATEST
 from . import store
+from .orchestrator import route_assertion
 from .extended import router
 app=FastAPI(title="AX QE OS",version="4.9.0")
 store.init()
@@ -16,17 +17,13 @@ class Run(BaseModel):
  risk:float=Field(ge=0,le=1)
  assertion_passed:bool|None=None
  confidence:float|None=Field(default=None,ge=0,le=1)
+ complexity:float=Field(default=0.5,ge=0,le=1)
+ budget:float=Field(default=1.0,ge=0,le=1)
  external_run_id:str|None=None
  evidence_uri:str|None=None
 def route(r):
  p=yaml.safe_load(Path("config/routing.yaml").read_text())["routing"]
- if r.assertion_passed is False:return "T0","fail","assertion_failed"
- if r.assertion_passed is None:return "T3","review","assertion_missing"
- if r.risk>=p["critical_risk"]:return "T3","review","critical_risk"
- if r.confidence is None:return "T2","review","confidence_missing"
- if r.risk>=p["strong_judge_risk"] or r.confidence<p["confidence_escalate"]:return "T2","review","strong_judge_required"
- if r.confidence<p["confidence_accept"]:return "T1","review","economical_judge_required"
- return "T0","pass","deterministic_pass"
+ return route_assertion(r.assertion_passed,r.risk,r.confidence,p,r.complexity,r.budget)
 @app.get("/health")
 def health():return {"status":"ok","version":"4.9.0"}
 @app.post("/api/v1/e2e/runs")
