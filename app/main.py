@@ -5,6 +5,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel,Field
 from prometheus_client import Counter,generate_latest,CONTENT_TYPE_LATEST
 from . import store
+from .orchestrator import decide
 from .extended import router
 from .scientist import router as scientist_router
 from .quality_api import router as quality_router
@@ -22,15 +23,18 @@ class Run(BaseModel):
  confidence:float|None=Field(default=None,ge=0,le=1)
  external_run_id:str|None=None
  evidence_uri:str|None=None
+ evidence:dict|None=None
+ expected_sha256:str|None=None
+ estimated_judge_cost_usd:float=Field(default=0,ge=0)
 def route(r):
  p=yaml.safe_load(Path("config/routing.yaml").read_text())["routing"]
- if r.assertion_passed is False:return "T0","fail","assertion_failed"
- if r.assertion_passed is None:return "T3","review","assertion_missing"
- if r.risk>=p["critical_risk"]:return "T3","review","critical_risk"
- if r.confidence is None:return "T2","review","confidence_missing"
- if r.risk>=p["strong_judge_risk"] or r.confidence<p["confidence_escalate"]:return "T2","review","strong_judge_required"
- if r.confidence<p["confidence_accept"]:return "T1","review","economical_judge_required"
- return "T0","pass","deterministic_pass"
+ d=decide(risk=r.risk,assertion_passed=r.assertion_passed,confidence=r.confidence,
+          evidence=r.evidence,expected_sha256=r.expected_sha256,
+          estimated_judge_cost_usd=r.estimated_judge_cost_usd,
+          max_judge_cost_usd=p["max_judge_usd_per_run"],
+          critical_risk=p["critical_risk"],strong_judge_risk=p["strong_judge_risk"],
+          confidence_accept=p["confidence_accept"],confidence_escalate=p["confidence_escalate"])
+ return d.tier,d.outcome,d.reason
 @app.get("/health")
 def health():return {"status":"ok","version":"4.9.0"}
 @app.post("/api/v1/e2e/runs")
