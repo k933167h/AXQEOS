@@ -19,3 +19,6 @@ If secrets leak, revoke and rotate them; audit Actions and remote provider logs.
 Preserve run_id, test_id, assertion outcome, Judge tier/verdict, reviewer, approval decision, Golden promotion, outbox delivery IDs, build SHA, workflow run URL and timestamp. Redact personal data and tokens.
 ## 10. Change management
 For every change: code -> automated tests -> evidence -> Architecture Overview -> Runbook -> PR review. Keep docs/STATUS.md accurate. Never assert test success without a successful CI or execution log.
+
+## 11. Reporter adaptive Judge routing
+Send optional complexity (0..1) in POST /api/v1/reporter. Critical risk >=0.85 routes to T3 SME without model calls; complexity >=0.85 bypasses economical Judge and starts at T2. Lower-risk cases retain existing T1→T2 confidence policy. Test with mock endpoints; actual JEV/LLM service, calibration and audit are still pending. Never interpret a model pass as automatic Golden promotion.
