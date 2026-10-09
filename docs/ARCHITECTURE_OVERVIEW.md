@@ -24,3 +24,6 @@ GitHub Actions runs pytest for the Reporter/SME workflow and archives JUnit XML 
 
 ## Experimental quality loop (development branch, prototype)
 Authenticated quality hypothesis records are linked to existing run IDs; experiments must reference a persisted test run and evidence URI; an SME-token-protected review records accept/reject/revise. This is a **manual orchestration prototype**, not an autonomous hypothesis generator, independent AI reviewer, ablation runner, or real TesterArmy executor. Accepted hypotheses never auto-promote Golden. The model judge failure path returns T3 review rather than HTTP 500 for recognized transport/parse failures.
+
+## Native fallback algorithms (development branch)
+app/quality_algorithms.py provides canonical SHA-256 evidence digests, stable risk-stratified subset selection, paired descriptive ablation deltas, and conservative multi-reviewer consensus. All are deterministic and usable without an external AI service. These are reusable primitives, **not yet wired into the production evaluation orchestrator**. Review IDs alone do not establish actual organizational or model independence. Evidence digests detect changes only against a trusted stored reference; they do not establish provenance. Ablation deltas are not causal estimates.
