@@ -27,9 +27,9 @@ def pending():
  with connect() as db:return [dict(r) for r in db.execute("SELECT * FROM outbox WHERE state='pending' AND next_attempt<=? ORDER BY id LIMIT 20",(time.time(),))]
 def finish(job,remote_id):
  with connect() as db:db.execute("UPDATE outbox SET state='delivered',remote_id=?,last_error=NULL WHERE id=?",(remote_id,job["id"]))
-def retry(job,error):
+def retry(job,error,delay=None):
  attempts=job["attempts"]+1
- with connect() as db:db.execute("UPDATE outbox SET attempts=?,last_error=?,state=?,next_attempt=? WHERE id=?",(attempts,str(error)[:300],"dead" if attempts>=6 else "pending",time.time()+min(3600,2**attempts),job["id"]))
+ with connect() as db:db.execute("UPDATE outbox SET attempts=?,last_error=?,state=?,next_attempt=? WHERE id=?",(attempts,str(error)[:300],"dead" if attempts>=6 else "pending",time.time()+(min(3600,2**attempts) if delay is None else delay),job["id"]))
 def promote(run_id,reviewer):
  with connect() as db:
   r=db.execute("SELECT outcome FROM runs WHERE id=?",(run_id,)).fetchone()

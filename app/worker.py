@@ -1,5 +1,6 @@
 import os,json,asyncio,logging,httpx
 from . import store
+from .integration_algorithms import retry_delay,redact_evidence
 logging.basicConfig(level=logging.INFO)
 async def deliver(job):
  row=store.get_run(job["run_id"])
@@ -31,7 +32,7 @@ async def run_once():
  for job in store.pending():
   try:store.finish(job,await deliver(job))
   except Exception as exc:
-   logging.exception("Delivery failed for %s",job["id"]);store.retry(job,exc)
+   logging.exception("Delivery failed for %s",job["id"]);store.retry(job,redact_evidence(exc),delay=retry_delay(job['attempts']+1,seed=job['id']))
 async def main():
  store.init()
  while True:
