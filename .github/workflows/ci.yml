@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
       - name: Python compile
-        run: python -m compileall -q app tests
+        run: python -m compileall -q app tests lab
       - name: Unit tests
         env:
           AX_DB_PATH: /tmp/axqeos-ci.sqlite3
@@ -28,19 +28,53 @@ jobs:
           AX_REPORTER_TOKEN: ci-placeholder
           AX_SME_TOKEN: ci-placeholder
           GRAFANA_ADMIN_PASSWORD: ci-placeholder
-        run: docker compose config -q
+        run: |
+          docker compose config -q
+          docker compose -f docker-compose.yml -f docker-compose.lab.yml config -q
   dependency-audit:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Audit dependency vulnerabilities (advisory, non-gating)
+      - name: Audit dependency vulnerabilities (gating)
         run: |
           python -m pip install pip-audit
           pip-audit -r requirements.txt
+  lab-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start lab containers
+        env:
+          AX_REPORTER_TOKEN: ci-lab-reporter
+          AX_SME_TOKEN: ci-lab-sme
+          GRAFANA_ADMIN_PASSWORD: ci-lab-grafana
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.lab.yml up --build -d api worker mock-services otel-collector
+      - name: Reporter and judge HTTP smoke
+        env:
+          AX_REPORTER_TOKEN: ci-lab-reporter
+          AX_SME_TOKEN: ci-lab-sme
+          GRAFANA_ADMIN_PASSWORD: ci-lab-grafana
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.lab.yml --profile smoke run --rm smoke
+      - name: Lab logs on failure
+        if: failure()
+        env:
+          AX_REPORTER_TOKEN: ci-lab-reporter
+          AX_SME_TOKEN: ci-lab-sme
+          GRAFANA_ADMIN_PASSWORD: ci-lab-grafana
+        run: docker compose -f docker-compose.yml -f docker-compose.lab.yml logs --tail=120 api worker mock-services otel-collector
+      - name: Clean up
+        if: always()
+        env:
+          AX_REPORTER_TOKEN: ci-lab-reporter
+          AX_SME_TOKEN: ci-lab-sme
+          GRAFANA_ADMIN_PASSWORD: ci-lab-grafana
+        run: docker compose -f docker-compose.yml -f docker-compose.lab.yml down -v
   integration:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
