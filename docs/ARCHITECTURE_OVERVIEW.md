@@ -30,3 +30,6 @@ app/quality_algorithms.py provides canonical SHA-256 evidence digests, stable ri
 
 ## Native algorithm API integration (development branch)
 Authenticated /api/v1/quality endpoints expose evidence verification, subset selection, ablation delta, reviewer consensus, and persistent audit retrieval. Evidence and review audits are linked to run IDs in SQLite. Subset and ablation calls are currently stateless; the evaluation orchestrator does not automatically invoke them. Evidence verification accepts a caller-supplied reference digest and therefore does not independently establish trusted provenance. Reviewer IDs are self-declared; identity/model independence is not independently attested. No API here promotes Golden.
+
+## Adaptive Orchestrator v1 integration
+The generic POST /api/v1/e2e/runs path now invokes app/orchestrator.py for deterministic T0, risk/confidence T1/T2 referral, critical T3, budget cap and optional evidence digest verification. Estimated judge cost is an input estimate, not metered actual spend. T1/T2 are routing recommendations on this generic endpoint: actual judge HTTP execution remains in the separate Reporter path. This is not yet a unified executable cascade. Golden promotion remains a separate SME action.
