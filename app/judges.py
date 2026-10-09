@@ -1,4 +1,5 @@
 import os, httpx
+from .integration_algorithms import choose_tier
 async def judge(prompt,model,base_url,key,timeout=30):
  if not base_url or not key or not model:
   return {"verdict":"review","confidence":0,"reason":"judge_not_configured"}
@@ -9,11 +10,20 @@ async def judge(prompt,model,base_url,key,timeout=30):
   obj=json.loads(r.json()["choices"][0]["message"]["content"])
   if obj.get("verdict") not in ("pass","fail","review") or not 0<=float(obj.get("confidence",-1))<=1:raise ValueError("invalid judge output")
   return obj
-async def evaluate(evidence,risk):
+async def evaluate(evidence,risk,complexity=0.5):
+ if risk>=0.85:
+  return "T3","review",{"reason":"critical_risk_requires_sme","confidence":0}
+ if complexity>=0.85:
+  return await _evaluate_strong(evidence,risk)
+ return await _evaluate_cheap(evidence,risk)
+
+async def _evaluate_cheap(evidence,risk):
  cheap=await judge(evidence,os.getenv("JEV_MODEL"),os.getenv("JEV_BASE_URL"),os.getenv("JEV_API_KEY"))
  if cheap["verdict"]=="fail":return "T1","fail",cheap
  if risk<0.65 and cheap["confidence"]>=0.90 and cheap["verdict"]=="pass":return "T1","pass",cheap
+ return await _evaluate_strong(evidence,risk)
+
+async def _evaluate_strong(evidence,risk):
  strong=await judge(evidence,os.getenv("LLM_JUDGE_MODEL"),os.getenv("LLM_JUDGE_BASE_URL"),os.getenv("LLM_JUDGE_API_KEY"))
- if risk>=0.85:return "T3","review",strong
  if strong["confidence"]>=0.90 and strong["verdict"] in ("pass","fail"):return "T2",strong["verdict"],strong
  return "T3","review",strong
