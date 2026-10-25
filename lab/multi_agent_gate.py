@@ -9,7 +9,6 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -63,7 +62,7 @@ def _review(role: str, argv: list[str], context: dict, repo: Path, timeout: int)
         return {"role": role, "status": "ok", "duration_s": elapsed, "findings": findings}
 
 
-def _verify(finding: dict, repo: Path, timeout: int) -> dict:
+def _verify(finding: dict, repo: Path, timeout: int, trusted: dict) -> dict:
     output = {k: v for k, v in finding.items() if k != "reproducer"}
     output["verified"] = False
     try:
@@ -77,9 +76,10 @@ def _verify(finding: dict, repo: Path, timeout: int) -> dict:
         lines = path.read_text(encoding="utf-8").splitlines()
         if line > len(lines):
             raise ValueError("source line missing")
-        command = finding.get("reproducer")
+        repro_id = finding.get("reproducer_id")
+        command = trusted.get(repro_id) if isinstance(repro_id, str) else None
         if not isinstance(command, list) or not command:
-            raise ValueError("no reproducer argv: requires manual adjudication")
+            raise ValueError("no trusted reproducer ID: requires manual adjudication")
         code, log = _execute(command, repo, timeout)
         output["verification_exit_code"] = code
         output["verification_log"] = log
@@ -107,23 +107,28 @@ def run(config: dict, repo: Path) -> dict:
         raise ValueError("exactly correctness/security/architecture reviewers required")
     if not isinstance(context, dict) or not context.get("requirement_id") or not context.get("diff_ref"):
         raise ValueError("requirement_id and diff_ref required")
+    trusted = config.get("trusted_reproducers", {})
+    if not isinstance(trusted, dict):
+        raise ValueError("invalid trusted_reproducers")
     start = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(ROLES)) as pool:
         futures = {role: pool.submit(_review, role, adapters[role], context, repo, timeout)
                    for role in ROLES}
         reviews = [futures[role].result() for role in ROLES]
     findings = []
+    malformed_findings = 0
     dedup = set()
     for review in reviews:
         for entry in review["findings"]:
             if not isinstance(entry, dict):
+                malformed_findings += 1
                 continue
             tagged = dict(entry, reviewer_role=review["role"])
             signature = (tagged.get("file"), tagged.get("line"), tagged.get("title"))
             if signature in dedup:
                 continue
             dedup.add(signature)
-            findings.append(_verify(tagged, repo, timeout))
+            findings.append(_verify(tagged, repo, timeout, trusted))
     reviews_ok = all(r["status"] == "ok" for r in reviews)
     blocking = [f for f in findings if f.get("severity") in ("critical", "high")]
     # The gate does not equate 'not reproduced' with 'not a real defect'.
@@ -133,7 +138,8 @@ def run(config: dict, repo: Path) -> dict:
         code, log = _execute(argv, repo, timeout)
         test_results.append({"argv": argv, "exit_code": code, "log": log})
         evidence_ok = evidence_ok and code == 0
-    gate = "pass" if reviews_ok and evidence_ok and not blocking else "hold"
+    unresolved = [f for f in findings if not f["verified"]]
+    gate = "pass" if reviews_ok and evidence_ok and not blocking and not unresolved and malformed_findings == 0 else "hold"
     return {
         "schema_version": "pilot-1",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
@@ -147,7 +153,8 @@ def run(config: dict, repo: Path) -> dict:
             "reviewers_ok": reviews_ok,
             "tests_ok": evidence_ok,
             "blocking_findings": len(blocking),
-            "unverified_findings": sum(not f["verified"] for f in findings),
+            "unverified_findings": len(unresolved),
+            "malformed_findings": malformed_findings,
         },
         "wall_clock_seconds": round(time.monotonic() - start, 3),
         "human_approval": "pending",
