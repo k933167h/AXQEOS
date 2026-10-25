@@ -16,6 +16,7 @@ on:
       - 'lab/atomic_evidence_outbox.py'
       - 'lab/leased_outbox_worker.py'
       - 'tests/test_leased_outbox_worker.py'
+      - 'tests/test_observability_contract.py'
       - 'tests/test_atomic_evidence_outbox.py'
       - 'tests/test_sqlite_evidence.py'
       - 'tests/test_evidence_registry.py'
@@ -42,4 +43,4 @@ jobs:
       - name: Install test runner
         run: python -m pip install pytest==9.0.3
       - name: Unit and subprocess integration
-        run: python -m pytest -q tests/test_multi_agent_gate.py tests/test_multi_agent_gate_integration.py tests/test_cli_review_adapter.py tests/test_pilot_experiment.py tests/test_seeded_benchmark.py tests/test_blind_benchmark.py tests/test_evidence_registry.py tests/test_sqlite_evidence.py tests/test_atomic_evidence_outbox.py tests/test_leased_outbox_worker.py
+        run: python -m pytest -q tests/test_multi_agent_gate.py tests/test_multi_agent_gate_integration.py tests/test_cli_review_adapter.py tests/test_pilot_experiment.py tests/test_seeded_benchmark.py tests/test_blind_benchmark.py tests/test_evidence_registry.py tests/test_sqlite_evidence.py tests/test_atomic_evidence_outbox.py tests/test_leased_outbox_worker.py tests/test_observability_contract.py
