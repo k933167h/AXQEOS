@@ -4,7 +4,7 @@ This is an **opt-in pilot** independent of the existing API and T0–T3 judge. I
 
 ## Contract
 
-Run three independent reviewer adapters (correctness, security, architecture), each receiving `{input}` as JSON and writing `{output}` as JSON. All reviewer responses must use `{"findings":[...]}`. Findings may contain `title`, `file`, `line`, `severity`, and a reproducible **argv** `reproducer` command. Review findings without a passing reproduction remain unverified, never silently accepted as false. Any high/critical finding holds the gate, even if unverified. The gate also holds if a reviewer fails or mandatory regression tests are missing/fail. The gate result is NOT a deployment authorization; human approval remains pending.
+Run three independent reviewer adapters (correctness, security, architecture), each receiving `{input}` as JSON and writing `{output}` as JSON. All reviewer responses must use `{"findings":[...]}`. Findings may contain `title`, `file`, `line`, `severity`, and a pre-registered `reproducer_id` (not an executable command). Review findings without a passing reproduction remain unverified, never silently accepted as false. Any high/critical finding holds the gate, even if unverified. The gate also holds if a reviewer fails or mandatory regression tests are missing/fail. The gate result is NOT a deployment authorization; human approval remains pending.
 
 **Security:** Reviewers and reproduction commands can execute code. Only use **trusted** adapters and test commands in an isolated CI environment with least privilege and no production secrets. Do not accept reviewer-provided arbitrary commands from untrusted models in production. Before production, use an allowlisted verification runner and container isolation. Don't expose secrets or untrusted repository contents to external providers without authorization.
 
@@ -22,12 +22,13 @@ Example config:
     "security": ["python", "trusted_review_adapter.py", "{input}", "{output}"],
     "architecture": ["python", "trusted_review_adapter.py", "{input}", "{output}"]
   },
+  "trusted_reproducers": {"known_regression": ["python", "trusted_repro.py"]},
   "required_tests": [["python", "-m", "pytest", "-q", "tests"]],
   "timeout_seconds": 120
 }
 ```
 
-Example reviewer output: `{"findings":[{"title":"Regression","file":"app/main.py","line":1,"severity":"high","reproducer":["python","trusted_repro.py"]}]}`. Exit code 0 from the trusted reproducer means the reported failure condition was confirmed, **not** that a regression test passed.
+Example reviewer output: `{"findings":[{"title":"Regression","file":"app/main.py","line":1,"severity":"high","reproducer_id":"known_regression"}]}`. Exit code 0 from the trusted reproducer means the reported failure condition was confirmed, **not** that a regression test passed.
 
 ## Measuring actual outcomes
 
@@ -53,3 +54,7 @@ Sample records (illustrative, NOT measured):
 - **G4:** LLMWiki Gherkin: link Feature/Scenario IDs, Requirement ID, verification traces, test runs and evidence records.
 
 Current repository status: **pilot implementation, not production-proven**. Nothing here claims external model execution or observed defect-detection/time improvements.
+
+## CI verification
+
+`.github/workflows/multi-agent-pilot.yml` runs subprocess smoke tests using `lab/mock_review_adapter.py`. This adapter is deterministic and DOES NOT call external AI services. Tests exercise clean pass, verified critical hold, unresolved medium hold, and rejection of an unregistered reproducer. Reviewers must not choose executable verification commands. Only a trusted, controlled harness administrator may register commands. GitHub Actions results and actual model performance are separate future verification requirements.
