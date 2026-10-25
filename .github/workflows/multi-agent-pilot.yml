@@ -9,6 +9,10 @@ on:
       - 'tests/test_cli_review_adapter.py'
       - 'lab/cli_review_adapter.py'
       - 'lab/pilot_experiment.py'
+      - 'lab/seeded_oracle.py'
+      - 'lab/seeded_review_adapter.py'
+      - 'lab/fixtures/**'
+      - 'tests/test_seeded_benchmark.py'
       - 'tests/test_pilot_experiment.py'
       - '.github/workflows/multi-agent-pilot.yml'
   pull_request:
@@ -27,4 +31,4 @@ jobs:
       - name: Install test runner
         run: python -m pip install pytest==9.0.3
       - name: Unit and subprocess integration
-        run: python -m pytest -q tests/test_multi_agent_gate.py tests/test_multi_agent_gate_integration.py tests/test_cli_review_adapter.py tests/test_pilot_experiment.py
+        run: python -m pytest -q tests/test_multi_agent_gate.py tests/test_multi_agent_gate_integration.py tests/test_cli_review_adapter.py tests/test_pilot_experiment.py tests/test_seeded_benchmark.py
