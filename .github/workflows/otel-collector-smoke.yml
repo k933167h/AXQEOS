@@ -1,0 +1,44 @@
+name: OTel Collector Live Container Smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'lab/collector_live_smoke.py'
+      - 'docker-compose.otel-smoke.yml'
+      - 'otel/collector.yaml'
+      - '.github/workflows/otel-collector-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  collector-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start isolated OTLP Collector
+        run: docker compose -f docker-compose.otel-smoke.yml up -d
+      - name: Submit real OTLP trace to local container
+        run: |
+          python - <<'PY'
+          import time
+          from lab.collector_live_smoke import send
+          for attempt in range(20):
+              try:
+                  print(send())
+                  break
+              except Exception:
+                  if attempt == 19:
+                      raise
+                  time.sleep(1)
+          PY
+      - name: Assert Collector debug exporter received trace
+        run: |
+          docker compose -f docker-compose.otel-smoke.yml logs otel-collector > /tmp/collector.log
+          grep -F 'axqeos.collector.smoke' /tmp/collector.log
+          grep -F '0123456789abcdef0123456789abcdef' /tmp/collector.log
+      - name: Debug logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.otel-smoke.yml logs --tail=120
+      - name: Stop collector
+        if: always()
+        run: docker compose -f docker-compose.otel-smoke.yml down -v
