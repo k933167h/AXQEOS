@@ -66,8 +66,9 @@ def send(destination,payload,settings,client):
 def drain(db,settings,client=None,now=None,limit=20):
     now=time.time() if now is None else now
     processed=0
-    client=client or httpx.Client()
-    own=not (client is not None and client is not False) # replaced below by caller semantics
+    own = client is None
+    if own:
+        client = httpx.Client()
     try:
         con=connect(db)
         try:
